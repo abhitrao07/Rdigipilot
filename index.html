@@ -14,7 +14,6 @@ canvas { border:1px solid #ccc; margin-top:16px; max-width:100%; }
 input, button { padding:10px; font-size:16px; }
 button { background:var(--blue); color:#fff; border:none; border-radius:6px; cursor:pointer; }
 button:hover { background:var(--blue-dark); }
-button[disabled] { opacity:.5; cursor:not-allowed; }
 .subhead { color:var(--ok); margin:8px 0; }
 .fileline { display:flex; justify-content:center; gap:8px; margin-top:6px; }
 .clearX { color:#d11; font-size:18px; cursor:pointer; }
@@ -43,11 +42,11 @@ button[disabled] { opacity:.5; cursor:not-allowed; }
 </div>
 
 <div class="row">
-  <input id="manualStore" placeholder="Enter Store Name (if no file)">
+  <input id="manualStore" placeholder="Enter Store Name (optional)">
 </div>
 
 <div class="row">
-  <button id="generateBtn" disabled>Generate</button>
+  <button id="generateBtn">Generate</button>
 </div>
 
 <canvas id="canvas"></canvas>
@@ -65,16 +64,9 @@ const fileInput = document.getElementById("fileInput");
 const fileLine  = document.getElementById("fileLine");
 const fileName  = document.getElementById("fileName");
 const entryCnt  = document.getElementById("entryCount");
-const genBtn    = document.getElementById("generateBtn");
 const manualStoreInput = document.getElementById("manualStore");
 
 const norm = v => (v||"").toString().replace(/\u00A0/g," ").replace(/\s+/g," ").trim();
-
-function updateUI() {
-  entryCnt.textContent = `Entries: ${DATA.length}`;
-  const manual = manualStoreInput.value.trim();
-  genBtn.disabled = !(DATA.length || manual);
-}
 
 fileInput.addEventListener("change", async e => {
   const file = e.target.files[0];
@@ -107,19 +99,17 @@ fileInput.addEventListener("change", async e => {
 
   fileName.textContent = `${file.name} (${DATA.length})`;
   fileLine.style.display = "flex";
-  updateUI();
+  entryCnt.textContent = `Entries: ${DATA.length}`;
 });
-
-manualStoreInput.addEventListener("input", updateUI);
 
 function clearFile() {
   DATA = [];
   fileInput.value = "";
   fileLine.style.display = "none";
-  updateUI();
+  entryCnt.textContent = "Entries: 0";
 }
 
-genBtn.onclick = async () => {
+document.getElementById("generateBtn").onclick = async () => {
 
   // BULK GENERATION
   if (DATA.length) {
@@ -135,11 +125,9 @@ genBtn.onclick = async () => {
     saveAs(await zip.generateAsync({type:"blob"}), "creatives_statewise.zip");
   }
 
-  // SINGLE GENERATION (no upload)
+  // SINGLE GENERATION (manual or generic)
   else {
     const storeName = manualStoreInput.value.trim();
-    if (!storeName) return;
-
     const blob = await drawCreative(storeName);
     saveAs(blob, "creative.png");
   }
@@ -166,6 +154,7 @@ async function drawCreative(storeName) {
 
   ctx.drawImage(qrCanvas, x, y, qrPx, qrPx);
 
+  // Draw store name only if provided
   if (storeName) {
     ctx.font = `${canvas.width * 0.025}px Arial`;
     ctx.textAlign = "center";

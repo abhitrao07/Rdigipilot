@@ -145,8 +145,8 @@ async function drawCreative(storeName) {
   const qrCanvas = document.createElement("canvas");
   await QRCode.toCanvas(qrCanvas, STATIC_QR_URL);
 
-  const qrPx = canvas.width * 0.28;
-  const rightMargin = canvas.width * 0.35;
+  const qrPx = canvas.width * 0.27;
+  const rightMargin = canvas.width * 0.33;
   const bottomMargin = canvas.width * 0.82;
 
   const x = canvas.width - qrPx - rightMargin;

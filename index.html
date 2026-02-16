@@ -94,7 +94,11 @@ fileInput.addEventListener("change", async e => {
   fileName.textContent = `${file.name} (${DATA.length})`;
   fileLine.style.display = "flex";
   entryCnt.textContent = `Entries: ${DATA.length}`;
-  genBtn.disabled = !DATA.length;
+ function updateUI() {
+  const manual = document.getElementById("manualStore").value.trim();
+  entryCnt.textContent = `Entries: ${DATA.length}`;
+  genBtn.disabled = !(DATA.length || manual);
+}
 });
 
 function clearFile() {

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Jio Partner Creative Generator</title>
+<title>Jio Creative Generator</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <style>
@@ -28,7 +28,7 @@
 
 <body>
 <div class="container">
-  <h2>Generate Your Jio Creative</h2>
+  <h2>Generate Jio Creative</h2>
   <div id="entryCount" class="subhead">Entries: 0</div>
 
   <div class="row">
@@ -42,10 +42,6 @@
   </div>
 
   <div class="row">
-    <input id="singleId" placeholder="Enter Partner ID (if no file)">
-  </div>
-
-  <div class="row">
     <button id="generateBtn" disabled>Generate</button>
   </div>
 
@@ -54,17 +50,17 @@
 
 <script>
 const baseImagePath = "base.jpg";
+const STATIC_QR_URL = "https://www.jio.com/selfcare/selfkyc/?utm_campaign=skycSJA&utm_source=creativeQR&utm_medium=Rdigi";
 
-let DATA = []; // [{id, store, state}]
+let DATA = [];
+
 const fileInput = document.getElementById("fileInput");
 const fileLine  = document.getElementById("fileLine");
 const fileName  = document.getElementById("fileName");
 const entryCnt  = document.getElementById("entryCount");
 const genBtn    = document.getElementById("generateBtn");
-const singleId  = document.getElementById("singleId");
 
-const normId = v => (v||"").toString().trim().toUpperCase();
-const normTxt = v => (v||"").toString().replace(/\u00A0/g," ").replace(/\s+/g," ").trim();
+const norm = v => (v||"").toString().replace(/\u00A0/g," ").replace(/\s+/g," ").trim();
 
 fileInput.addEventListener("change", async e => {
   const file = e.target.files[0];
@@ -75,11 +71,12 @@ fileInput.addEventListener("change", async e => {
   if (file.name.endsWith(".csv")) {
     const text = (await file.text()).replace(/\r/g,"\n");
     const lines = text.split("\n").filter(l => l.trim());
+
     for (let i = 1; i < lines.length; i++) {
-      const [id, store, state] = lines[i].split(",");
-      const pid = normId(id);
-      const st  = normTxt(state);
-      if (pid && st) DATA.push({ id: pid, store: normTxt(store), state: st });
+      const [store, state] = lines[i].split(",");
+      const st = norm(state);
+      const name = norm(store);
+      if (name && st) DATA.push({ store:name, state:st });
     }
   } else {
     const buf = await file.arrayBuffer();
@@ -88,49 +85,39 @@ fileInput.addEventListener("change", async e => {
     const json = XLSX.utils.sheet_to_json(ws, { defval:"" });
 
     json.forEach(r => {
-      const pid = normId(r.partner_id || r.partnerid || r.id);
-      const st  = normTxt(r.state);
-      if (pid && st) DATA.push({ id: pid, store: normTxt(r.store_name || r.store || ""), state: st });
+      const name = norm(r.store_name || r.store);
+      const st   = norm(r.state);
+      if (name && st) DATA.push({ store:name, state:st });
     });
   }
 
   fileName.textContent = `${file.name} (${DATA.length})`;
   fileLine.style.display = "flex";
-  updateUI();
+  entryCnt.textContent = `Entries: ${DATA.length}`;
+  genBtn.disabled = !DATA.length;
 });
 
 function clearFile() {
   DATA = [];
   fileInput.value = "";
   fileLine.style.display = "none";
-  updateUI();
-}
-
-singleId.addEventListener("input", updateUI);
-
-function updateUI() {
-  entryCnt.textContent = `Entries: ${DATA.length}`;
-  genBtn.disabled = !(DATA.length || singleId.value.trim());
+  entryCnt.textContent = "Entries: 0";
+  genBtn.disabled = true;
 }
 
 document.getElementById("generateBtn").onclick = async () => {
   const zip = new JSZip();
 
-  if (DATA.length) {
-    for (const row of DATA) {
-      const blob = await drawCreative(row.id, row.store);
-      const folder = zip.folder(row.state.replace(/[^a-z0-9 ]/gi,"_"));
-      folder.file(`creative_${row.id}.png`, blob);
-    }
-    saveAs(await zip.generateAsync({type:"blob"}), "creatives.zip");
-  } else {
-    const id = normId(singleId.value);
-    const blob = await drawCreative(id, "");
-    saveAs(blob, `creative_${id}.png`);
+  for (const row of DATA) {
+    const blob = await drawCreative(row.store);
+    const folder = zip.folder(row.state.replace(/[^a-z0-9 ]/gi,"_"));
+    folder.file(`${row.store.replace(/[^a-z0-9]/gi,"_")}.png`, blob);
   }
+
+  saveAs(await zip.generateAsync({type:"blob"}), "creatives_statewise.zip");
 };
 
-async function drawCreative(id, store) {
+async function drawCreative(storeName) {
   const img = await loadImage(baseImagePath);
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d");
@@ -140,17 +127,18 @@ async function drawCreative(id, store) {
   ctx.drawImage(img,0,0);
 
   const qrCanvas = document.createElement("canvas");
-  await QRCode.toCanvas(qrCanvas, `https://wa.me/917000070000?text=Gemini_rd_${id}`);
+  await QRCode.toCanvas(qrCanvas, STATIC_QR_URL);
 
-  const qrPx = canvas.width * 0.18;
-  const x = canvas.width - qrPx - canvas.width * 0.125;
-  const y = canvas.height - qrPx - canvas.width * 0.16;
+  const qrPx = canvas.width * 0.4;
+  const x = canvas.width - qrPx - canvas.width * 0.5;
+  const y = canvas.height - qrPx - canvas.width * 0.5;
   ctx.drawImage(qrCanvas, x, y, qrPx, qrPx);
 
-  const label = store ? `${id} | ${store}` : id;
-  ctx.font = `${canvas.width * 0.025}px Arial`;
-  ctx.textAlign = "center";
-  ctx.fillText(label, x + qrPx/2, y + qrPx + qrPx*0.08);
+  if (storeName) {
+    ctx.font = `${canvas.width * 0.025}px Arial`;
+    ctx.textAlign = "center";
+    ctx.fillText(storeName, x + qrPx/2, y + qrPx + qrPx*0.08);
+  }
 
   return new Promise(r => canvas.toBlob(r));
 }
@@ -162,8 +150,8 @@ function loadImage(src) {
 }
 
 function downloadTemplate() {
-  const csv = "partner_id,store_name,state\nT7CA,Sharma Mobile Store,Maharashtra\nTKC2,,Gujarat\n";
-  saveAs(new Blob([csv],{type:"text/csv"}),"partner_template_statewise.csv");
+  const csv = "store_name,state\nSharma Mobile Store,Maharashtra\nRaj Telecom,Gujarat\n";
+  saveAs(new Blob([csv],{type:"text/csv"}),"store_state_template.csv");
 }
 </script>
 </body>
